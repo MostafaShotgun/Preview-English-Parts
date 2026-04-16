@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📖 اللغة الأجنبية · مصطفى عادل</title>
+  <!-- Font Awesome & مكتبات -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Tahoma', sans-serif;
+      background: linear-gradient(145deg, #f1f4f8 0%, #e4eaf2 100%);
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+    .app {
+      max-width: 1300px;
+      width: 100%;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-radius: 48px;
+      box-shadow: 0 30px 50px -15px rgba(0,0,0,0.2);
+      padding: 28px 30px;
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+    h1 {
+      font-weight: 700;
+      font-size: 2.2rem;
+      background: linear-gradient(135deg, #1e2f47, #2c3e50);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .btn {
+      border: none;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(4px);
+      padding: 10px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      color: #1e2f47;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.04);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+      border: 1px solid rgba(255,255,255,0.6);
+      font-size: 1rem;
+    }
+    .btn i { font-size: 1.2rem; color: #3a6ea5; }
+    .btn:hover {
+      background: #1e2f47;
+      color: white;
+      transform: translateY(-3px);
+      box-shadow: 0 18px 25px -8px #1e2f4750;
+      border-color: transparent;
+    }
+    .btn:hover i { color: #ffdb7e; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 18px;
+      margin-bottom: 28px;
+      background: rgba(255,255,255,0.35);
+      padding: 16px 24px;
+      border-radius: 60px;
+      backdrop-filter: blur(8px);
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background: white;
+      padding: 6px 16px;
+      border-radius: 40px;
+    }
+    .file-label {
+      background: #1e2f47;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .file-label:hover { background: #2c4058; }
+    #fileInput { display: none; }
+
+    /* إعدادات الصوت */
+    .voice-settings {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      padding: 4px 16px;
+      border-radius: 40px;
+    }
+    .voice-settings select, .voice-settings input {
+      padding: 6px 10px;
+      border-radius: 30px;
+      border: 1px solid #cddae6;
+      background: white;
+      font-size: 0.9rem;
+    }
+
+    /* منطقة العرض */
+    .viewer-box {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(10px);
+      border-radius: 36px;
+      padding: 32px 36px;
+      box-shadow: inset 0 1px 4px #fff, 0 20px 30px -10px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    #contentViewer {
+      font-size: 1.2rem;
+      line-height: 1.9;
+      word-wrap: break-word;
+      direction: ltr;
+      text-align: left;
+      font-family: 'Georgia', 'Segoe UI', serif;
+      min-height: 400px;
+    }
+
+    /* تنسيق المحتوى المعروض */
+    #contentViewer h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 32px 0 20px;
+      color: #1e3b5c;
+      border-left: 8px solid #3a6ea5;
+      padding-left: 24px;
+      direction: ltr;
+      text-align: left;
+    }
+    #contentViewer h2[data-lang="ar"] {
+      border-left: none;
+      border-right: 8px solid #3a6ea5;
+      padding-right: 24px;
+      padding-left: 0;
+      direction: rtl;
+      text-align: right;
+    }
+
+    .en-block {
+      direction: ltr;
+      text-align: left;
+      margin: 18px 0 6px;
+      font-family: inherit;
+    }
+    .ar-block {
+      direction: rtl;
+      text-align: right;
+      margin: 6px 0 20px;
+      padding-right: 10px;
+      border-right: 3px solid #b0c7db;
+      font-family: 'Tahoma', 'Segoe UI', sans-serif;
+    }
+
+    .definition-term {
+      font-weight: 800;
+      color: #1e3b5c;
+      font-size: 1.2em;
+    }
+
+    .highlight-span {
+      border-radius: 12px;
+      padding: 2px 8px;
+      box-decoration-break: clone;
+      transition: 0.1s;
+    }
+
+    .placeholder-message {
+      text-align: center;
+      padding: 50px;
+      color: #6b8aac;
+      font-size: 1.3rem;
+    }
+
+    /* زر السماعة العائم */
+    .speech-tooltip {
+      position: absolute;
+      background: #1e2f47;
+      color: white;
+      border-radius: 40px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      z-index: 100;
+      cursor: pointer;
+      transition: 0.1s;
+      font-size: 1rem;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .speech-tooltip i { color: #ffdb7e; }
+    .speech-tooltip:hover { background: #2c4058; }
+
+    .status-bar {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      color: #1e3b5c;
+    }
+
+    @media print {
+      body { background: white; padding: 0.3in; }
+      .app { background: white; box-shadow: none; padding: 0; }
+      .toolbar, .app-header .btn, .status-bar, .upload-area, .voice-settings, .speech-tooltip { display: none !important; }
+      .viewer-box { background: white; padding: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="app-header">
+    <h1><i class="fas fa-language"></i> اللغة الأجنبية · مصطفى عادل</h1>
+    <div class="header-actions">
+      <button class="btn" id="exportJpgBtn"><i class="fas fa-camera"></i> JPEG</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="upload-area">
+      <i class="fas fa-cloud-upload-alt"></i>
+      <span>ملف JSON</span>
+      <label for="fileInput" class="file-label"><i class="fas fa-folder-open"></i> اختر ملف</label>
+      <input type="file" id="fileInput" accept=".json,application/json">
+    </div>
+    
+    <!-- إعدادات النطق -->
+    <div class="voice-settings">
+      <i class="fas fa-volume-up"></i>
+      <select id="voiceSelect" title="اختر صوت الإنجليزية"></select>
+      <label style="display:flex; align-items:center; gap:4px;"><span>سرعة</span>
+        <input type="range" id="rateInput" min="0.5" max="2" value="1" step="0.1" style="width:80px;">
+      </label>
+      <label style="display:flex; align-items:center; gap:4px;"><span>نبرة</span>
+        <input type="range" id="pitchInput" min="0.5" max="2" value="1" step="0.1" style="width:80px;">
+      </label>
+    </div>
+    
+    <div style="flex:1;"></div>
+    <span style="color:#1e3b5c;"><i class="far fa-eye"></i> حدد نص إنجليزي للاستماع</span>
+  </div>
+
+  <!-- منطقة العرض -->
+  <div class="viewer-box" id="viewerBox">
+    <div id="contentViewer">
+      <div class="placeholder-message">
+        <i class="fas fa-upload" style="font-size: 3rem; opacity: 0.5; margin-bottom: 20px; display: block;"></i>
+        قم برفع ملف JSON لعرض الكتاب
+      </div>
+    </div>
+    <!-- زر السماعة العائم (يظهر عند التحديد) -->
+    <div id="speechTooltip" class="speech-tooltip" style="display: none;">
+      <i class="fas fa-volume-up"></i>
+      <span>استمع</span>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusMsg"><i class="far fa-file"></i> لا يوجد ملف</span>
+    <span>🎧 إعدادات الصوت للأكسنت المفضل</span>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const viewer = document.getElementById('contentViewer');
+    const viewerBox = document.getElementById('viewerBox');
+    const statusMsg = document.getElementById('statusMsg');
+    const fileInput = document.getElementById('fileInput');
+    const speechTooltip = document.getElementById('speechTooltip');
+    
+    // عناصر الصوت
+    const voiceSelect = document.getElementById('voiceSelect');
+    const rateInput = document.getElementById('rateInput');
+    const pitchInput = document.getElementById('pitchInput');
+    
+    let currentHTML = '';
+    let selectedText = '';
+    let tooltipTimer = null;
+    
+    // واجهة النطق
+    let synth = window.speechSynthesis;
+    let voices = [];
+    
+    // تحميل الأصوات
+    function loadVoices() {
+      voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
+      voiceSelect.innerHTML = '';
+      voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        voiceSelect.appendChild(option);
+      });
+      if (voices.length > 0) voiceSelect.selectedIndex = 0;
+    }
+    
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = loadVoices;
+    }
+    loadVoices();
+    
+    // نطق النص
+    function speakText(text) {
+      if (!text.trim()) return;
+      synth.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoiceIndex = voiceSelect.value;
+      if (voices[selectedVoiceIndex]) {
+        utterance.voice = voices[selectedVoiceIndex];
+      }
+      utterance.rate = parseFloat(rateInput.value);
+      utterance.pitch = parseFloat(pitchInput.value);
+      synth.speak(utterance);
+    }
+    
+    // عرض زر السماعة بجانب التحديد
+    function showSpeechTooltip(rect, text) {
+      if (!text.trim()) return;
+      selectedText = text;
+      
+      const boxRect = viewerBox.getBoundingClientRect();
+      // حساب الموضع النسبي داخل viewerBox
+      let left = rect.left - boxRect.left + (rect.width / 2) - 50;
+      let top = rect.top - boxRect.top - 45;
+      
+      // ضبط الحدود
+      if (top < 5) top = rect.bottom - boxRect.top + 10;
+      if (left < 5) left = 10;
+      if (left + 120 > boxRect.width) left = boxRect.width - 130;
+      
+      speechTooltip.style.left = left + 'px';
+      speechTooltip.style.top = top + 'px';
+      speechTooltip.style.display = 'flex';
+      
+      clearTimeout(tooltipTimer);
+      tooltipTimer = setTimeout(() => {
+        speechTooltip.style.display = 'none';
+      }, 4000);
+    }
+    
+    // إخفاء tooltip
+    function hideTooltip() {
+      speechTooltip.style.display = 'none';
+      clearTimeout(tooltipTimer);
+    }
+    
+    // معالجة التحديد داخل viewer
+    document.addEventListener('mouseup', (e) => {
+      // التحقق أن التحديد داخل viewerBox
+      if (!viewerBox.contains(e.target)) {
+        hideTooltip();
+        return;
+      }
+      
+      const selection = window.getSelection();
+      const text = selection.toString().trim();
+      
+      // نتحقق أن النص يحتوي على أحرف إنجليزية بشكل أساسي (بسيط)
+      const hasEnglish = /[a-zA-Z]/.test(text);
+      if (!text || !hasEnglish) {
+        hideTooltip();
+        return;
+      }
+      
+      // نحصل على موقع التحديد
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        showSpeechTooltip(rect, text);
+      } else {
+        hideTooltip();
+      }
+    });
+    
+    // النقر على زر السماعة ينطق النص المحدد
+    speechTooltip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (selectedText) {
+        speakText(selectedText);
+        // ومضة خفيفة
+        speechTooltip.style.background = '#3a6ea5';
+        setTimeout(() => speechTooltip.style.background = '#1e2f47', 200);
+      }
+      hideTooltip();
+    });
+    
+    // إخفاء عند النقر خارج viewerBox
+    document.addEventListener('mousedown', (e) => {
+      if (!viewerBox.contains(e.target) && !speechTooltip.contains(e.target)) {
+        hideTooltip();
+      }
+    });
+    
+    // دالة عرض المحتوى
+    function renderContent(htmlString) {
+      if (!htmlString) {
+        viewer.innerHTML = `<div class="placeholder-message"><i class="fas fa-exclamation-circle"></i> الملف لا يحتوي على محتوى.</div>`;
+        return;
+      }
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlString;
+      const fragment = document.createDocumentFragment();
+      const children = Array.from(tempDiv.childNodes);
+      for (let node of children) {
+        if (node.nodeType === 3 && node.textContent.trim() === '') continue;
+        fragment.appendChild(node.cloneNode(true));
+      }
+      viewer.innerHTML = '';
+      viewer.appendChild(fragment);
+      
+      // تحسين التظليل
+      viewer.querySelectorAll('.highlight-span').forEach(span => {
+        if (!span.style.backgroundColor) span.style.backgroundColor = '#FFEB3B';
+        span.style.padding = '2px 8px';
+        span.style.borderRadius = '12px';
+      });
+      statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> تم تحميل المحتوى`;
+    }
+    
+    // رفع ملف JSON
+    fileInput.addEventListener('change', function(e) {
+      const file = fileInput.files[0];
+      if (!file) return;
+      statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> جاري القراءة...`;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const json = JSON.parse(ev.target.result);
+          let html = '';
+          if (json.content) {
+            html = json.content;
+          } else if (json.en && json.ar) {
+            html = `<h2>English</h2><div class="en-block">${json.en}</div><h2 data-lang="ar">العربية</h2><div class="ar-block">${json.ar}</div>`;
+          } else {
+            throw new Error('تنسيق غير معروف');
+          }
+          currentHTML = html;
+          renderContent(html);
+        } catch (error) {
+          viewer.innerHTML = `<div class="placeholder-message" style="color:#a00;"><i class="fas fa-exclamation-triangle"></i> خطأ: ${error.message}</div>`;
+          statusMsg.innerHTML = `<i class="far fa-times-circle" style="color:#a00;"></i> فشل القراءة`;
+        }
+      };
+      reader.readAsText(file);
+      fileInput.value = '';
+    });
+    
+    // تصدير JPEG
+    async function exportJPG() {
+      if (!currentHTML && viewer.children.length === 0) {
+        alert('لا يوجد محتوى.');
+        return;
+      }
+      statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> إنشاء JPEG...`;
+      try {
+        const canvas = await html2canvas(viewerBox, { 
+          scale: 2.5, 
+          backgroundColor: '#f9fbfd',
+          allowTaint: false,
+          useCORS: true
+        });
+        const link = document.createElement('a');
+        link.download = `language_view_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+        statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> تم تصدير JPEG`;
+      } catch (e) {
+        statusMsg.innerHTML = `<i class="far fa-times-circle" style="color:#a00;"></i> فشل JPEG`;
+      }
+    }
+    
+    document.getElementById('exportJpgBtn').addEventListener('click', exportJPG);
+    
+    // مثال عند النقر المزدوج على العنوان
+    document.querySelector('h1').addEventListener('dblclick', function() {
+      const sample = `
+        <h2>Part One: Classifications of Contract</h2>
+        <h2 data-lang="ar">الجزء الأول: تصنيفات العقد</h2>
+        <div class="en-block"><strong class="definition-term">Definition of a Contract:</strong> a contract is a written or oral agreement between two or more parties intended to constitute legal effects.</div>
+        <div class="ar-block"><strong class="definition-term">تعريف العقد:</strong> العقد هو اتفاق مكتوب أو شفهي بين طرفين أو أكثر يهدف إلى تكوين آثار قانونية.</div>
+        <div class="en-block">Example: <span class="highlight-span" style="background-color: #FFEB3B;">contract</span> law governs promises.</div>
+        <div class="ar-block">مثال: يحكم قانون <span class="highlight-span" style="background-color: #FFEB3B;">العقد</span> الوعود.</div>
+      `;
+      currentHTML = sample;
+      renderContent(sample);
+      statusMsg.innerHTML = `<i class="far fa-check-circle"></i> مثال توضيحي (انقر نقراً مزدوجاً)`;
+    });
+    
+    // إيقاف النطق عند مغادرة الصفحة
+    window.addEventListener('beforeunload', () => {
+      if (synth) synth.cancel();
+    });
+  })();
+</script>
+</body>
+</html>
