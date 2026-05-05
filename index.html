@@ -223,7 +223,7 @@
       font-size: 1.3rem;
     }
 
-    /* زر السماعة العائم */
+    /* زر السماعة العائم (بجانب التحديد) */
     .speech-tooltip {
       position: absolute;
       background: #1e2f47;
@@ -262,10 +262,52 @@
       font-size: 0.9rem;
     }
 
+    /* --- الزر العائم الدائم (مثل scroll-to-top) --- */
+    .floating-speak-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #1e2f47;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.25);
+      cursor: pointer;
+      z-index: 10000;
+      transition: all 0.2s ease;
+      border: 2px solid rgba(255,255,255,0.3);
+      backdrop-filter: blur(6px);
+    }
+    .floating-speak-btn i {
+      font-size: 1.8rem;
+      color: #ffdb7e;
+      transition: color 0.2s;
+    }
+    .floating-speak-btn:hover {
+      background: #2c4058;
+      transform: scale(1.1);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.35);
+    }
+    .floating-speak-btn:active {
+      transform: scale(0.95);
+    }
+    /* عند النطق يتغير اللون مؤقتاً */
+    .floating-speak-btn.speaking {
+      background: #3a6ea5;
+      transform: scale(1.05);
+    }
+    .floating-speak-btn.speaking i {
+      color: #fff;
+    }
+
     @media print {
       body { background: white; padding: 0.3in; }
       .app { background: white; box-shadow: none; padding: 0; }
-      .toolbar, .app-header .btn, .status-bar, .upload-area, .voice-settings, .speech-tooltip, .part-selector, .auto-load-area { display: none !important; }
+      .toolbar, .app-header .btn, .status-bar, .upload-area, .voice-settings, .speech-tooltip, .part-selector, .auto-load-area, .floating-speak-btn { display: none !important; }
       .viewer-box { background: white; padding: 0; box-shadow: none; }
     }
   </style>
@@ -335,6 +377,11 @@
   </div>
 </div>
 
+<!-- الزر العائم الدائم لنطق النص المحدد -->
+<div id="floatingSpeakBtn" class="floating-speak-btn" title="انطق النص الإنجليزي المحدد">
+  <i class="fas fa-volume-up"></i>
+</div>
+
 <script>
   (function(){
     const viewer = document.getElementById('contentViewer');
@@ -346,6 +393,7 @@
     const loadedCountSpan = document.getElementById('loadedCount');
     const speechTooltip = document.getElementById('speechTooltip');
     const autoLoadBtn = document.getElementById('autoLoadBtn');
+    const floatingSpeakBtn = document.getElementById('floatingSpeakBtn');
     
     // عناصر الصوت
     const voiceSelect = document.getElementById('voiceSelect');
@@ -357,6 +405,9 @@
     let currentHTML = '';
     let selectedText = '';
     let tooltipTimer = null;
+    
+    // متغير لحفظ النص المحدد قبل أن يلغيه النقر
+    let pendingSpokenText = '';
     
     // واجهة النطق
     let synth = window.speechSynthesis;
@@ -448,7 +499,7 @@
     
     speechTooltip.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (selectedText) {
+      if (selectedText && /[a-zA-Z]/.test(selectedText)) {
         speakText(selectedText);
         speechTooltip.style.background = '#3a6ea5';
         setTimeout(() => speechTooltip.style.background = '#1e2f47', 200);
@@ -461,6 +512,36 @@
         hideTooltip();
       }
     });
+    
+    // ---------- الزر العائم الدائم (معدل لحفظ التحديد قبل النقر) ----------
+    floatingSpeakBtn.addEventListener('mousedown', (e) => {
+      // التقاط النص المحدد قبل أن يلغيه المتصفح
+      const selection = window.getSelection();
+      pendingSpokenText = selection.toString().trim();
+      // لا نمنع الحدث الافتراضي لنحافظ على سلوك الزر
+    });
+    
+    floatingSpeakBtn.addEventListener('click', () => {
+      const text = pendingSpokenText;
+      const hasEnglish = /[a-zA-Z]/.test(text);
+      if (hasEnglish) {
+        speakText(text);
+        // تأثير بصري مؤقت
+        floatingSpeakBtn.classList.add('speaking');
+        setTimeout(() => {
+          floatingSpeakBtn.classList.remove('speaking');
+        }, 250);
+      } else {
+        // وميض خفيف للدلالة على عدم وجود نص إنجليزي محدد
+        floatingSpeakBtn.style.opacity = '0.6';
+        setTimeout(() => {
+          floatingSpeakBtn.style.opacity = '1';
+        }, 200);
+      }
+      // إعادة تعيين النص المعلق
+      pendingSpokenText = '';
+    });
+    // --------------------------------------------------------------------
     
     // تحويل JSON إلى HTML للعرض
     function jsonToHTML(json) {
@@ -590,7 +671,6 @@
     partSelect.addEventListener('change', loadSelectedPart);
     
     // --- ميزة التحميل التلقائي من المجلد (بجانب الصفحة) ---
-    // تحاول تحميل ملفات Part_1.json, Part_2.json ... حتى تفشل 3 مرات متتالية
     async function autoLoadFromFolder() {
       statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> جاري التحميل التلقائي...`;
       let index = 1;
@@ -611,12 +691,11 @@
           const success = processAndAddFile(fileName, text);
           if (success) {
             loadedCount++;
-            consecutiveFails = 0; // إعادة تعيين العداد عند النجاح
+            consecutiveFails = 0;
           } else {
             consecutiveFails++;
           }
         } catch (error) {
-          // فشل الاتصال (ملف غير موجود أو مشكلة شبكة)
           consecutiveFails++;
         }
         index++;
@@ -658,7 +737,7 @@
     
     document.getElementById('exportJpgBtn').addEventListener('click', exportJPG);
     
-    // مثال توضيحي عند النقر المزدوج على العنوان (تم تعديله لإضافة اسم وهمي)
+    // مثال توضيحي عند النقر المزدوج على العنوان
     document.querySelector('h1').addEventListener('dblclick', function() {
       const sampleJSON = {
         content: `
@@ -681,8 +760,7 @@
       if (synth) synth.cancel();
     });
     
-    // محاولة أولية تلقائية عند تحميل الصفحة (اختياري - يمكن إزالته إذا أردت يدوي بحت)
-    // autoLoadFromFolder(); // تركتها معلقة حتى لا تزعج المستخدم، يمكن تفعيلها إذا أردت
+    // محاولة تحميل تلقائي أولية
     autoLoadFromFolder();
   })();
 </script>
