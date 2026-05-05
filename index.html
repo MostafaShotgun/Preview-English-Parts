@@ -33,6 +33,8 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 22px;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     h1 {
       font-weight: 700;
@@ -87,10 +89,11 @@
     .upload-area {
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 10px;
       background: white;
       padding: 6px 16px;
       border-radius: 40px;
+      flex-wrap: wrap;
     }
     .file-label {
       background: #1e2f47;
@@ -105,7 +108,25 @@
       gap: 8px;
     }
     .file-label:hover { background: #2c4058; }
-    #fileInput { display: none; }
+    #fileInput, #multiFileInput { display: none; }
+
+    .part-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 4px 16px;
+      border-radius: 40px;
+    }
+    .part-selector select {
+      padding: 8px 12px;
+      border-radius: 30px;
+      border: 1px solid #cddae6;
+      background: white;
+      font-size: 0.9rem;
+      min-width: 180px;
+      font-weight: 500;
+    }
 
     /* إعدادات الصوت */
     .voice-settings {
@@ -115,6 +136,7 @@
       background: white;
       padding: 4px 16px;
       border-radius: 40px;
+      flex-wrap: wrap;
     }
     .voice-settings select, .voice-settings input {
       padding: 6px 10px;
@@ -226,41 +248,26 @@
       display: flex;
       justify-content: space-between;
       color: #1e3b5c;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .auto-load-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 4px 16px;
+      border-radius: 40px;
+      font-size: 0.9rem;
     }
 
     @media print {
       body { background: white; padding: 0.3in; }
       .app { background: white; box-shadow: none; padding: 0; }
-      .toolbar, .app-header .btn, .status-bar, .upload-area, .voice-settings, .speech-tooltip { display: none !important; }
+      .toolbar, .app-header .btn, .status-bar, .upload-area, .voice-settings, .speech-tooltip, .part-selector, .auto-load-area { display: none !important; }
       .viewer-box { background: white; padding: 0; box-shadow: none; }
     }
-
-      .speech-tooltip {
-        position: absolute; /* تبقى نسبية للـviewer */
-        background: #1e2f47;
-        color: white;
-        border-radius: 40px;
-        padding: 10px 18px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-        z-index: 100;
-        cursor: pointer;
-        transition: opacity 0.2s;
-        font-size: 1.1rem;
-        white-space: nowrap;
-        border: 1px solid rgba(255,255,255,0.3);
-        user-select: none;  /* يمنع تحديد نص الأداة */
-        touch-action: manipulation; /* يحسن استجابة اللمس */
-      }
-      @media (max-width: 600px) {
-        .speech-tooltip {
-          padding: 12px 20px;
-          font-size: 1.2rem;
-        }
-      }
-
   </style>
 </head>
 <body>
@@ -275,9 +282,20 @@
   <div class="toolbar">
     <div class="upload-area">
       <i class="fas fa-cloud-upload-alt"></i>
-      <span>ملف JSON</span>
-      <label for="fileInput" class="file-label"><i class="fas fa-folder-open"></i> اختر ملف</label>
+      <span>JSON</span>
+      <label for="multiFileInput" class="file-label" title="رفع عدة ملفات JSON دفعة واحدة"><i class="fas fa-folder-open"></i> اختر ملفات</label>
+      <input type="file" id="multiFileInput" accept=".json,application/json" multiple>
+      <label for="fileInput" class="file-label" style="background:#3a6ea5;" title="رفع ملف واحد فقط"><i class="fas fa-file"></i> ملف واحد</label>
       <input type="file" id="fileInput" accept=".json,application/json">
+    </div>
+
+    <!-- قائمة اختيار الجزء المحمل -->
+    <div class="part-selector">
+      <i class="fas fa-book-open"></i>
+      <select id="partSelect" title="اختر الجزء لعرضه">
+        <option value="">-- لم يُحمل شيء --</option>
+      </select>
+      <button class="btn" id="autoLoadBtn" title="محاولة تحميل تلقائي لـ Part_1.json, Part_2.json ..."><i class="fas fa-sync-alt"></i> تحميل تلقائي</button>
     </div>
     
     <!-- إعدادات النطق -->
@@ -301,7 +319,7 @@
     <div id="contentViewer">
       <div class="placeholder-message">
         <i class="fas fa-upload" style="font-size: 3rem; opacity: 0.5; margin-bottom: 20px; display: block;"></i>
-        قم برفع ملف JSON لعرض الكتاب
+        قم برفع ملفات JSON أو استخدام التحميل التلقائي لعرض الكتاب
       </div>
     </div>
     <!-- زر السماعة العائم (يظهر عند التحديد) -->
@@ -313,7 +331,7 @@
 
   <div class="status-bar">
     <span id="statusMsg"><i class="far fa-file"></i> لا يوجد ملف</span>
-    <span>🎧 إعدادات الصوت للأكسنت المفضل</span>
+    <span>🎧 إعدادات الصوت للأكسنت المفضل | <span id="loadedCount">0</span> ملف محمل</span>
   </div>
 </div>
 
@@ -323,13 +341,19 @@
     const viewerBox = document.getElementById('viewerBox');
     const statusMsg = document.getElementById('statusMsg');
     const fileInput = document.getElementById('fileInput');
+    const multiFileInput = document.getElementById('multiFileInput');
+    const partSelect = document.getElementById('partSelect');
+    const loadedCountSpan = document.getElementById('loadedCount');
     const speechTooltip = document.getElementById('speechTooltip');
+    const autoLoadBtn = document.getElementById('autoLoadBtn');
     
     // عناصر الصوت
     const voiceSelect = document.getElementById('voiceSelect');
     const rateInput = document.getElementById('rateInput');
     const pitchInput = document.getElementById('pitchInput');
     
+    // قاموس لتخزين الملفات المحملة: اسم الملف -> محتوى HTML
+    const fileStore = new Map();
     let currentHTML = '';
     let selectedText = '';
     let tooltipTimer = null;
@@ -376,117 +400,79 @@
       selectedText = text;
       
       const boxRect = viewerBox.getBoundingClientRect();
-      let left = rect.left - boxRect.left + (rect.width / 2) - 60;
-      let top = rect.top - boxRect.top - 50;
+      let left = rect.left - boxRect.left + (rect.width / 2) - 50;
+      let top = rect.top - boxRect.top - 45;
       
-      if (top < 5) top = rect.bottom - boxRect.top + 15;
+      if (top < 5) top = rect.bottom - boxRect.top + 10;
       if (left < 5) left = 10;
-      if (left + 140 > boxRect.width) left = boxRect.width - 150;
+      if (left + 120 > boxRect.width) left = boxRect.width - 130;
       
       speechTooltip.style.left = left + 'px';
       speechTooltip.style.top = top + 'px';
       speechTooltip.style.display = 'flex';
-      speechTooltip.style.opacity = '1';
       
       clearTimeout(tooltipTimer);
       tooltipTimer = setTimeout(() => {
-        speechTooltip.style.opacity = '0';
-        setTimeout(() => { if (speechTooltip.style.opacity === '0') speechTooltip.style.display = 'none'; }, 200);
+        speechTooltip.style.display = 'none';
       }, 4000);
     }
-
-    function hideTooltip(immediate = false) {
-      if (immediate) {
-        speechTooltip.style.display = 'none';
-        speechTooltip.style.opacity = '1';
-        clearTimeout(tooltipTimer);
-      } else {
-        speechTooltip.style.opacity = '0';
-        tooltipTimer = setTimeout(() => {
-          if (speechTooltip.style.opacity === '0') speechTooltip.style.display = 'none';
-        }, 200);
-      }
+    
+    function hideTooltip() {
+      speechTooltip.style.display = 'none';
+      clearTimeout(tooltipTimer);
     }
-
-    // ✅ المعالج الجديد (يعمل على الموبايل والكمبيوتر)
-    function handleSelectionChange() {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) {
+    
+    // معالجة التحديد داخل viewer
+    document.addEventListener('mouseup', (e) => {
+      if (!viewerBox.contains(e.target)) {
         hideTooltip();
         return;
       }
       
+      const selection = window.getSelection();
       const text = selection.toString().trim();
-      // نتحقق من وجود حروف إنجليزية
       const hasEnglish = /[a-zA-Z]/.test(text);
-      
       if (!text || !hasEnglish) {
         hideTooltip();
         return;
       }
-
-      // نتأكد أن التحديد داخل viewerBox
-      const range = selection.getRangeAt(0);
-      const container = range.commonAncestorContainer;
-      if (!viewerBox.contains(container)) {
-        hideTooltip();
-        return;
-      }
-
-      // نحصل على إحداثيات التحديد
-      const rect = range.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) {
-        hideTooltip();
-        return;
-      }
       
-      showSpeechTooltip(rect, text);
-    }
-
-    document.addEventListener('selectionchange', handleSelectionChange);
-    document.addEventListener('touchend', function(e) {
-      // ننتظر قليلاً حتى ينتهي التحديد من التشكل
-      setTimeout(handleSelectionChange, 10);
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        showSpeechTooltip(rect, text);
+      } else {
+        hideTooltip();
+      }
     });
     
-   speechTooltip.addEventListener('click', (e) => {
+    speechTooltip.addEventListener('click', (e) => {
       e.stopPropagation();
       if (selectedText) {
         speakText(selectedText);
         speechTooltip.style.background = '#3a6ea5';
         setTimeout(() => speechTooltip.style.background = '#1e2f47', 200);
       }
-      hideTooltip(true);
+      hideTooltip();
     });
     
-    speechTooltip.addEventListener('touchstart', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      // سنتعامل مع النقر عبر click العادي
-    });
-    
-    // إخفاء الأداة عند النقر/اللمس خارج viewerBox
     document.addEventListener('mousedown', (e) => {
       if (!viewerBox.contains(e.target) && !speechTooltip.contains(e.target)) {
-        hideTooltip(true);
+        hideTooltip();
       }
     });
-    document.addEventListener('touchstart', (e) => {
-      if (!viewerBox.contains(e.target) && !speechTooltip.contains(e.target)) {
-        hideTooltip(true);
-      }
-    }, { passive: true });
-
-    // إخفاء عند التمرير (حتى لا تبقى في مكان خاطئ)
-    viewerBox.addEventListener('scroll', () => {
-      hideTooltip(true);
-    });
-    window.addEventListener('scroll', () => {
-      if (speechTooltip.style.display === 'flex') hideTooltip(true);
-    });
-
     
-    // دالة عرض المحتوى
+    // تحويل JSON إلى HTML للعرض
+    function jsonToHTML(json) {
+      if (json.content) {
+        return json.content;
+      } else if (json.en && json.ar) {
+        return `<h2>English</h2><div class="en-block">${json.en}</div><h2 data-lang="ar">العربية</h2><div class="ar-block">${json.ar}</div>`;
+      }
+      throw new Error('تنسيق JSON غير مدعوم');
+    }
+    
+    // عرض محتوى HTML في العارض
     function renderContent(htmlString) {
       if (!htmlString) {
         viewer.innerHTML = `<div class="placeholder-message"><i class="fas fa-exclamation-circle"></i> الملف لا يحتوي على محتوى.</div>`;
@@ -494,51 +480,157 @@
       }
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlString;
-      const fragment = document.createDocumentFragment();
-      const children = Array.from(tempDiv.childNodes);
-      for (let node of children) {
-        if (node.nodeType === 3 && node.textContent.trim() === '') continue;
-        fragment.appendChild(node.cloneNode(true));
-      }
       viewer.innerHTML = '';
-      viewer.appendChild(fragment);
+      Array.from(tempDiv.childNodes).forEach(node => {
+        if (node.nodeType === 3 && node.textContent.trim() === '') return;
+        viewer.appendChild(node.cloneNode(true));
+      });
       
-      // تحسين التظليل
       viewer.querySelectorAll('.highlight-span').forEach(span => {
         if (!span.style.backgroundColor) span.style.backgroundColor = '#FFEB3B';
         span.style.padding = '2px 8px';
         span.style.borderRadius = '12px';
       });
-      statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> تم تحميل المحتوى`;
     }
     
-    // رفع ملف JSON
-    fileInput.addEventListener('change', function(e) {
-      const file = fileInput.files[0];
-      if (!file) return;
-      statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> جاري القراءة...`;
-      const reader = new FileReader();
-      reader.onload = function(ev) {
-        try {
-          const json = JSON.parse(ev.target.result);
-          let html = '';
-          if (json.content) {
-            html = json.content;
-          } else if (json.en && json.ar) {
-            html = `<h2>English</h2><div class="en-block">${json.en}</div><h2 data-lang="ar">العربية</h2><div class="ar-block">${json.ar}</div>`;
-          } else {
-            throw new Error('تنسيق غير معروف');
-          }
-          currentHTML = html;
-          renderContent(html);
-        } catch (error) {
-          viewer.innerHTML = `<div class="placeholder-message" style="color:#a00;"><i class="fas fa-exclamation-triangle"></i> خطأ: ${error.message}</div>`;
-          statusMsg.innerHTML = `<i class="far fa-times-circle" style="color:#a00;"></i> فشل القراءة`;
+    // تحديث القائمة المنسدلة وعداد الملفات
+    function updatePartSelect() {
+      partSelect.innerHTML = '';
+      if (fileStore.size === 0) {
+        partSelect.innerHTML = '<option value="">-- لم يُحمل شيء --</option>';
+        loadedCountSpan.textContent = '0';
+        return;
+      }
+      const sortedNames = Array.from(fileStore.keys()).sort();
+      sortedNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        partSelect.appendChild(option);
+      });
+      // تحديد آخر ملف مضاف (أو الأول)
+      partSelect.value = sortedNames[sortedNames.length - 1];
+      loadedCountSpan.textContent = fileStore.size;
+      // عرض الملف المحدد
+      loadSelectedPart();
+    }
+    
+    // عرض الملف المحدد في القائمة المنسدلة
+    function loadSelectedPart() {
+      const selectedFile = partSelect.value;
+      if (!selectedFile || !fileStore.has(selectedFile)) {
+        viewer.innerHTML = `<div class="placeholder-message"><i class="fas fa-exclamation-circle"></i> الرجاء اختيار ملف.</div>`;
+        statusMsg.innerHTML = `<i class="far fa-file"></i> لا يوجد محتوى`;
+        return;
+      }
+      const html = fileStore.get(selectedFile);
+      currentHTML = html;
+      renderContent(html);
+      statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> ${selectedFile}`;
+    }
+    
+    // معالجة ملف JSON واحد وإضافته للمخزن
+    function processAndAddFile(fileName, jsonText) {
+      try {
+        const json = JSON.parse(jsonText);
+        const html = jsonToHTML(json);
+        fileStore.set(fileName, html);
+        return true;
+      } catch (e) {
+        console.error(`خطأ في معالجة ${fileName}:`, e);
+        return false;
+      }
+    }
+    
+    // قراءة ملفات من FileList وإضافتها
+    function handleFiles(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> جاري معالجة ${fileList.length} ملف...`;
+      let processed = 0;
+      let failed = 0;
+      const readers = [];
+      
+      Array.from(fileList).forEach(file => {
+        const reader = new FileReader();
+        readers.push(new Promise((resolve) => {
+          reader.onload = function(ev) {
+            const success = processAndAddFile(file.name, ev.target.result);
+            if (success) processed++;
+            else failed++;
+            resolve();
+          };
+          reader.onerror = () => { failed++; resolve(); };
+          reader.readAsText(file);
+        }));
+      });
+      
+      Promise.all(readers).then(() => {
+        updatePartSelect();
+        if (processed > 0) {
+          statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> تم تحميل ${processed} ملف`;
+        } else {
+          statusMsg.innerHTML = `<i class="far fa-times-circle" style="color:#a00;"></i> فشل تحميل الملفات`;
         }
-      };
-      reader.readAsText(file);
+      });
+    }
+    
+    // رفع ملفات متعددة
+    multiFileInput.addEventListener('change', function(e) {
+      handleFiles(e.target.files);
+      multiFileInput.value = '';
+    });
+    
+    // رفع ملف واحد (الإدخال القديم)
+    fileInput.addEventListener('change', function(e) {
+      handleFiles(e.target.files);
       fileInput.value = '';
     });
+    
+    // التغيير في القائمة المنسدلة يعرض الجزء المختار
+    partSelect.addEventListener('change', loadSelectedPart);
+    
+    // --- ميزة التحميل التلقائي من المجلد (بجانب الصفحة) ---
+    // تحاول تحميل ملفات Part_1.json, Part_2.json ... حتى تفشل 3 مرات متتالية
+    async function autoLoadFromFolder() {
+      statusMsg.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> جاري التحميل التلقائي...`;
+      let index = 1;
+      let consecutiveFails = 0;
+      const maxFails = 3;
+      let loadedCount = 0;
+      
+      while (consecutiveFails < maxFails) {
+        const fileName = `Part_${index}.json`;
+        try {
+          const response = await fetch(fileName);
+          if (!response.ok) {
+            consecutiveFails++;
+            index++;
+            continue;
+          }
+          const text = await response.text();
+          const success = processAndAddFile(fileName, text);
+          if (success) {
+            loadedCount++;
+            consecutiveFails = 0; // إعادة تعيين العداد عند النجاح
+          } else {
+            consecutiveFails++;
+          }
+        } catch (error) {
+          // فشل الاتصال (ملف غير موجود أو مشكلة شبكة)
+          consecutiveFails++;
+        }
+        index++;
+      }
+      
+      updatePartSelect();
+      if (loadedCount > 0) {
+        statusMsg.innerHTML = `<i class="far fa-check-circle" style="color:#2e7d32;"></i> تم تحميل ${loadedCount} جزء تلقائياً`;
+      } else {
+        statusMsg.innerHTML = `<i class="far fa-times-circle" style="color:#a00;"></i> لم يتم العثور على أجزاء (تأكد من وجود الملفات بجانب الصفحة)`;
+      }
+    }
+    
+    autoLoadBtn.addEventListener('click', autoLoadFromFolder);
     
     // تصدير JPEG
     async function exportJPG() {
@@ -566,25 +658,31 @@
     
     document.getElementById('exportJpgBtn').addEventListener('click', exportJPG);
     
-    // مثال عند النقر المزدوج على العنوان
+    // مثال توضيحي عند النقر المزدوج على العنوان (تم تعديله لإضافة اسم وهمي)
     document.querySelector('h1').addEventListener('dblclick', function() {
-      const sample = `
-        <h2>Part One: Classifications of Contract</h2>
-        <h2 data-lang="ar">الجزء الأول: تصنيفات العقد</h2>
-        <div class="en-block"><strong class="definition-term">Definition of a Contract:</strong> a contract is a written or oral agreement between two or more parties intended to constitute legal effects.</div>
-        <div class="ar-block"><strong class="definition-term">تعريف العقد:</strong> العقد هو اتفاق مكتوب أو شفهي بين طرفين أو أكثر يهدف إلى تكوين آثار قانونية.</div>
-        <div class="en-block">Example: <span class="highlight-span" style="background-color: #FFEB3B;">contract</span> law governs promises.</div>
-        <div class="ar-block">مثال: يحكم قانون <span class="highlight-span" style="background-color: #FFEB3B;">العقد</span> الوعود.</div>
-      `;
-      currentHTML = sample;
-      renderContent(sample);
-      statusMsg.innerHTML = `<i class="far fa-check-circle"></i> مثال توضيحي (انقر نقراً مزدوجاً)`;
+      const sampleJSON = {
+        content: `
+          <h2>Part One: Classifications of Contract</h2>
+          <h2 data-lang="ar">الجزء الأول: تصنيفات العقد</h2>
+          <div class="en-block"><strong class="definition-term">Definition of a Contract:</strong> a contract is a written or oral agreement between two or more parties intended to constitute legal effects.</div>
+          <div class="ar-block"><strong class="definition-term">تعريف العقد:</strong> العقد هو اتفاق مكتوب أو شفهي بين طرفين أو أكثر يهدف إلى تكوين آثار قانونية.</div>
+          <div class="en-block">Example: <span class="highlight-span" style="background-color: #FFEB3B;">contract</span> law governs promises.</div>
+          <div class="ar-block">مثال: يحكم قانون <span class="highlight-span" style="background-color: #FFEB3B;">العقد</span> الوعود.</div>
+        `
+      };
+      const html = jsonToHTML(sampleJSON);
+      fileStore.set('Example_Part_1.json', html);
+      updatePartSelect();
+      statusMsg.innerHTML = `<i class="far fa-check-circle"></i> مثال توضيحي مضاف`;
     });
     
     // إيقاف النطق عند مغادرة الصفحة
     window.addEventListener('beforeunload', () => {
       if (synth) synth.cancel();
     });
+    
+    // محاولة أولية تلقائية عند تحميل الصفحة (اختياري - يمكن إزالته إذا أردت يدوي بحت)
+    // autoLoadFromFolder(); // تركتها معلقة حتى لا تزعج المستخدم، يمكن تفعيلها إذا أردت
   })();
 </script>
 </body>
